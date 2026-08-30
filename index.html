@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>教室座位安排表</title>
+  <title>教室座位安排表（Google 試算表同步版）</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Baloo+2&display=swap');
     body {
@@ -22,7 +22,6 @@
       margin: 0 0 6px 0;
     }
 
-    /* 分頁導覽列樣式 */
     .tab-bar {
       display: flex;
       justify-content: center;
@@ -48,7 +47,6 @@
       box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
     }
 
-    /* 分頁內容區塊 */
     .tab-content {
       display: none;
       flex: 1;
@@ -285,7 +283,6 @@
       margin-top: 4px;
     }
 
-    /* 投影展示頁專用樣式覆寫 */
     #present-tab .present-layout {
       display: grid;
       grid-template-columns: 2fr 1fr;
@@ -342,7 +339,6 @@
       cursor: pointer !important;
     }
 
-    /* 作業回報狀態樣式 */
     #present-tab .student-badge.status-submitted {
       background-color: #28a745 !important;
       box-shadow: 0 0 12px rgba(40, 167, 69, 0.7);
@@ -386,7 +382,6 @@
       border: 1px solid #28a745;
     }
 
-    /* 直式聯絡簿專用樣式 */
     .memo-panel {
       display: flex;
       flex-direction: column;
@@ -435,7 +430,6 @@
       background: #ffeeba;
     }
     
-    /* 聯絡簿編輯區：直式書寫 */
     .memo-editor {
       flex: 1;
       width: 100%;
@@ -448,7 +442,6 @@
       box-sizing: border-box;
       background-color: #ffffff;
       color: #333;
-      
       writing-mode: vertical-rl;
       text-orientation: mixed;
       overflow-x: auto;
@@ -470,15 +463,13 @@
 </head>
 <body>
 
-  <h1>教室座位安排表</h1>
+  <h1>教室座位安排表（雲端同步版）</h1>
 
-  <!-- 分頁按鈕列 -->
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('present')">📺 學生檢視頁面（作業回報）</button>
     <button class="tab-btn" onclick="switchTab('edit')">🛠️ 調整座位頁面</button>
   </div>
 
-  <!-- 分頁 1：學生檢視頁面 (作業回報投影模式 + 直式右側聯絡簿) -->
   <div id="present-tab" class="tab-content active">
     <div class="present-toolbar">
       <div class="present-tip">💡 點擊座號切換：<span style="color:#28a745; font-weight:bold;">綠色(已完成 ✓)</span> ➔ <span style="color:#b58500; font-weight:bold;">淡黃色(加油中 ✏️)</span> ➔ 正常</div>
@@ -486,7 +477,6 @@
     </div>
 
     <div class="present-layout">
-      <!-- 左側 2/3：座位區 -->
       <div class="panel" style="display:flex; flex-direction:column;">
         <div class="podium">講台方向</div>
         <div class="seating-wrapper">
@@ -502,7 +492,6 @@
         </div>
       </div>
 
-      <!-- 右側 1/3：直式聯絡簿（自動偵測最大編號並智慧遞增） -->
       <div class="panel memo-panel">
         <div class="memo-header">
           <span>📝 今日聯絡簿</span>
@@ -516,7 +505,6 @@
     </div>
   </div>
 
-  <!-- 分頁 2：調整座位頁面 (編輯模式) -->
   <div id="edit-tab" class="tab-content">
     <div class="container">
       <div class="panel">
@@ -549,13 +537,17 @@
   <div class="timestamp-global" id="lastUpdate">最後更新時間：尚未更新</div>
 
   <script>
+    // ==========================================
+    // 請將 Google Apps Script 網頁應用程式網址填入下方
+    // ==========================================
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwvczuvfUuPMiq4pNDYbkO-3ezTRjF91qw9wromign0PD2g5E5OYfCKd24MMKLIJ12y/exec";
+
     const totalStudents = 27; 
     const cols = 6; 
     const rows = 5; 
     const gridSeats = cols * rows; 
     const extraSeatsCount = 2;     
     const totalSeats = gridSeats + extraSeatsCount; 
-
     const disabledSeats = ["4-5", "5-5", "6-5"];
 
     let state = {
@@ -574,8 +566,7 @@
         const month = now.getMonth() + 1;
         const day = now.getDate();
         const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
-        const weekday = weekdays[now.getDay()];
-        dateBadge.innerText = `${year}年${month}月${day}日 週${weekday}`;
+        dateBadge.innerText = `${year}年${month}月${day}日 週${weekdays[now.getDay()]}`;
       }
     }
 
@@ -594,83 +585,122 @@
         memoBox.contentEditable = "false";
         memoBox.classList.add("locked-memo");
         lockBtn.innerText = "🔒 已鎖定";
-        lockBtn.title = "已鎖定，點擊即可解鎖編輯";
       } else {
         memoBox.contentEditable = "true";
         memoBox.classList.remove("locked-memo");
         lockBtn.innerText = "🔓 解鎖中";
-        lockBtn.title = "未鎖定，點擊即可鎖定防誤觸";
       }
+    }
+
+    // 從 Google 試算表載入資料
+    function loadData() {
+      if (!WEB_APP_URL || WEB_APP_URL.includes("請貼上")) {
+        console.log("尚未設定 Google Apps Script 網址");
+        render();
+        return;
+      }
+
+      fetch(WEB_APP_URL)
+        .then(res => res.json())
+        .then(parsed => {
+          if (parsed && parsed.pool) {
+            state.pool = (parsed.pool || []).filter(n => n <= totalStudents);
+            state.submissions = parsed.submissions || {};
+            state.memo = parsed.memo || "一、";
+            state.memoLocked = !!parsed.memoLocked;
+            
+            let loadedSeats = (parsed.seats || []).map(s => {
+              if (s === null) return { student: null, locked: false };
+              if (typeof s === 'number') return { student: s <= totalStudents ? s : null, locked: false };
+              if (typeof s === 'object' && s.student !== undefined) {
+                let stud = s.student;
+                if (stud > totalStudents) stud = null;
+                return { student: stud === "empty" ? null : stud, locked: !!s.locked };
+              }
+              return { student: null, locked: false };
+            });
+            
+            while (loadedSeats.length < totalSeats) loadedSeats.push({ student: null, locked: false });
+            state.seats = loadedSeats.slice(0, totalSeats);
+
+            if (parsed.lastUpdate) {
+              document.getElementById("lastUpdate").innerText = "最後更新時間：" + parsed.lastUpdate;
+            }
+          }
+          updateMemoLockUI();
+          render();
+        })
+        .catch(err => {
+          console.error("讀取雲端資料失敗", err);
+          render();
+        });
+    }
+
+    // 儲存資料到 Google 試算表
+    function saveData() {
+      const now = new Date();
+      const formatted = now.toLocaleString();
+      document.getElementById("lastUpdate").innerText = "最後更新時間：" + formatted;
+
+      const payload = {
+        pool: state.pool,
+        seats: state.seats,
+        submissions: state.submissions,
+        memo: state.memo,
+        memoLocked: state.memoLocked,
+        lastUpdate: formatted
+      };
+
+      if (!WEB_APP_URL || WEB_APP_URL.includes("請貼上")) return;
+
+      fetch(WEB_APP_URL, {
+        method: "POST",
+        mode: "no-cors", // 避免跨域阻擋
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(payload)
+      }).catch(err => {
+        console.error("寫入雲端失敗: ", err);
+      });
     }
 
     document.addEventListener("DOMContentLoaded", () => {
       initTodayDate();
       const memoBox = document.getElementById("memoContent");
       if (memoBox) {
-        const saved = localStorage.getItem("seating_state_v43");
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (parsed.memo !== undefined) {
-              memoBox.innerText = parsed.memo;
-              state.memo = parsed.memo;
-            }
-            if (parsed.memoLocked !== undefined) {
-              state.memoLocked = parsed.memoLocked;
-            }
-          } catch(e) {}
-        }
-        updateMemoLockUI();
-
-        // 智慧偵測 Enter 鍵：掃描現有編號找出最大值，自動接續下一個數字
         memoBox.addEventListener("keydown", (e) => {
           if (state.memoLocked) return;
           if (e.key === "Enter") {
             e.preventDefault();
             const chineseNums = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三", "十四", "十五"];
-            
             const text = memoBox.innerText;
             const matches = text.match(/([一二三四五六七八九十]+)、/g);
-            
             let maxVal = 1;
             if (matches) {
-              const values = matches.map(m => {
-                const char = m.replace("、", "");
-                return chineseNums.indexOf(char);
-              }).filter(v => v > 0);
-              if (values.length > 0) {
-                maxVal = Math.max(...values);
-              }
+              const values = matches.map(m => chineseNums.indexOf(m.replace("、", ""))).filter(v => v > 0);
+              if (values.length > 0) maxVal = Math.max(...values);
             }
-
-            const nextVal = maxVal + 1;
-            const nextPrefix = (chineseNums[nextVal] || nextVal) + "、";
-
+            const nextPrefix = (chineseNums[maxVal + 1] || (maxVal + 1)) + "、";
             const selection = window.getSelection();
             if (selection.rangeCount > 0) {
               const range = selection.getRangeAt(0);
               range.deleteContents();
               const textNode = document.createTextNode("\n" + nextPrefix);
               range.insertNode(textNode);
-              
               range.setStartAfter(textNode);
               range.setEndAfter(textNode);
               selection.removeAllRanges();
               selection.addRange(range);
             }
-
             state.memo = memoBox.innerText;
             saveData();
           }
         });
 
-        // 即時保護第一行開頭必須是「一、」
         memoBox.addEventListener("input", () => {
           if (state.memoLocked) return;
           let text = memoBox.innerText;
           if (!text.startsWith("一、")) {
             memoBox.innerText = "一、" + text.replace(/^[一二三四五六七八九十、]+/, "");
-            
             let range = document.createRange();
             let sel = window.getSelection();
             range.selectNodeContents(memoBox);
@@ -682,6 +712,10 @@
           saveData();
         });
       }
+
+      loadData();
+      // 設定每隔 5 秒自動向 Google 試算表同步一次最新狀態，確保多裝置能互通
+      setInterval(loadData, 5000);
     });
 
     function switchTab(tabName) {
@@ -699,72 +733,6 @@
       }
     }
 
-    function updateTimestamp() {
-      const now = new Date();
-      const formatted = now.toLocaleString();
-      document.getElementById("lastUpdate").innerText = "最後更新時間：" + formatted;
-      localStorage.setItem("seating_lastUpdate_v43", formatted);
-    }
-
-    function loadData() {
-      const saved = localStorage.getItem("seating_state_v43");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          state.pool = (parsed.pool || []).filter(n => n <= totalStudents);
-          state.submissions = parsed.submissions || {};
-          state.memo = parsed.memo || "一、";
-          state.memoLocked = !!parsed.memoLocked;
-          
-          let loadedSeats = (parsed.seats || []).map(s => {
-            if (s === null) return { student: null, locked: false };
-            if (typeof s === 'number') return { student: s <= totalStudents ? s : null, locked: false };
-            if (typeof s === 'object' && s.student !== undefined) {
-              let stud = s.student;
-              if (stud > totalStudents) stud = null;
-              return { student: stud === "empty" ? null : stud, locked: !!s.locked };
-            }
-            return { student: null, locked: false };
-          });
-          
-          while (loadedSeats.length < totalSeats) {
-            loadedSeats.push({ student: null, locked: false });
-          }
-          state.seats = loadedSeats.slice(0, totalSeats);
-
-          for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-              const colIdx = cols - 1 - c; 
-              const rowIdx = r;
-              const seatIndex = colIdx * rows + rowIdx;
-              const coord = `${colIdx + 1}-${rowIdx + 1}`;
-              if (disabledSeats.includes(coord)) {
-                if (state.seats[seatIndex].student !== null) {
-                  if (!state.pool.includes(state.seats[seatIndex].student)) {
-                    state.pool.push(state.seats[seatIndex].student);
-                  }
-                  state.seats[seatIndex].student = null;
-                }
-              }
-            }
-          }
-          state.pool.sort((a, b) => a - b);
-        } catch(e) {
-          console.error(e);
-        }
-      }
-      const lastUpdate = localStorage.getItem("seating_lastUpdate_v43");
-      if (lastUpdate) {
-        document.getElementById("lastUpdate").innerText = "最後更新時間：" + lastUpdate;
-      }
-      updateMemoLockUI();
-    }
-
-    function saveData() {
-      localStorage.setItem("seating_state_v43", JSON.stringify(state));
-      updateTimestamp();
-    }
-
     function render() {
       renderPool();
       renderSeats();
@@ -780,8 +748,7 @@
         badge.innerText = num;
         badge.draggable = true;
         badge.addEventListener("dragstart", (e) => {
-          const payload = { num: num, sourceType: "pool", sourceIndex: null };
-          e.dataTransfer.setData("text/plain", JSON.stringify(payload));
+          e.dataTransfer.setData("text/plain", JSON.stringify({ num: num, sourceType: "pool", sourceIndex: null }));
         });
         poolEl.appendChild(badge);
       });
@@ -792,7 +759,6 @@
       const extraSlot4 = document.getElementById("extraSeat-4");
       extraSlot3.innerHTML = "";
       extraSlot4.innerHTML = "";
-
       extraSlot3.appendChild(createSeatElement(30, "4-前", true));
       extraSlot4.appendChild(createSeatElement(31, "3-前", true));
 
@@ -806,14 +772,13 @@
           const seatIndex = colIdx * rows + rowIdx;
           const coord = `${colIdx + 1}-${rowIdx + 1}`;
           const isDisabled = disabledSeats.includes(coord);
-
           const seatData = state.seats[seatIndex] || { student: null, locked: false };
+          
           const seatDiv = document.createElement("div");
           seatDiv.className = "seat";
           if (isDisabled) seatDiv.classList.add("disabled");
           seatDiv.dataset.col = colIdx; 
           if (seatData.locked && !isDisabled) seatDiv.classList.add("locked-seat");
-          seatDiv.dataset.seatIndex = seatIndex;
 
           const indexSpan = document.createElement("span");
           indexSpan.className = "seat-index";
@@ -824,7 +789,6 @@
             const lockBtn = document.createElement("div");
             lockBtn.className = "lock-btn";
             lockBtn.innerText = seatData.locked ? "🔒" : "🔓";
-            lockBtn.title = seatData.locked ? "點擊解除格子鎖定" : "點擊鎖定此格子為空位";
             lockBtn.addEventListener("click", (e) => {
               e.stopPropagation();
               toggleSeatLock(seatIndex);
@@ -840,19 +804,15 @@
               badge.className = "student-badge";
               badge.innerText = seatData.student;
               badge.draggable = !seatData.locked;
-
               if (seatData.locked) badge.classList.add("locked");
 
               badge.addEventListener("dragstart", (e) => {
                 if (seatData.locked) return;
-                const payload = { num: seatData.student, sourceType: "seat", sourceIndex: seatIndex };
-                e.dataTransfer.setData("text/plain", JSON.stringify(payload));
+                e.dataTransfer.setData("text/plain", JSON.stringify({ num: seatData.student, sourceType: "seat", sourceIndex: seatIndex }));
               });
-
               seatDiv.appendChild(badge);
             }
           }
-
           gridEl.appendChild(seatDiv);
         }
       }
@@ -863,8 +823,6 @@
       const seatDiv = document.createElement("div");
       seatDiv.className = "seat";
       if (isExtra) seatDiv.classList.add("extra-seat"); 
-      seatDiv.dataset.seatIndex = seatIndex;
-
       if (seatData.locked) seatDiv.classList.add("locked-seat");
 
       const indexSpan = document.createElement("span");
@@ -875,7 +833,6 @@
       const lockBtn = document.createElement("div");
       lockBtn.className = "lock-btn";
       lockBtn.innerText = seatData.locked ? "🔒" : "🔓";
-      lockBtn.title = seatData.locked ? "點擊解除格子鎖定" : "點擊鎖定此格子為空位";
       lockBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         toggleSeatLock(seatIndex);
@@ -891,18 +848,14 @@
         badge.className = "student-badge";
         badge.innerText = seatData.student;
         badge.draggable = !seatData.locked;
-
         if (seatData.locked) badge.classList.add("locked");
 
         badge.addEventListener("dragstart", (e) => {
           if (seatData.locked) return;
-          const payload = { num: seatData.student, sourceType: "seat", sourceIndex: seatIndex };
-          e.dataTransfer.setData("text/plain", JSON.stringify(payload));
+          e.dataTransfer.setData("text/plain", JSON.stringify({ num: seatData.student, sourceType: "seat", sourceIndex: seatIndex }));
         });
-
         seatDiv.appendChild(badge);
       }
-
       return seatDiv;
     }
 
@@ -915,7 +868,6 @@
       if (memoBox && state.memo !== undefined && document.activeElement !== memoBox) {
         memoBox.innerText = state.memo;
       }
-
       if (!extra3 || !extra4 || !grid) return;
 
       extra3.innerHTML = "";
@@ -938,7 +890,6 @@
           const badge = document.createElement("div");
           badge.className = "student-badge";
           if (seatData.locked) badge.classList.add("locked");
-          
           const sNum = seatData.student;
           badge.innerText = sNum;
 
@@ -947,17 +898,12 @@
           if (currentStatus === 2) badge.classList.add("status-incomplete");
 
           badge.addEventListener("click", () => {
-            let status = state.submissions[sNum] || 0;
-            status = (status + 1) % 3;
-            if (status === 0) {
-              delete state.submissions[sNum];
-            } else {
-              state.submissions[sNum] = status;
-            }
+            let status = (state.submissions[sNum] || 0) + 1;
+            if (status > 2) delete state.submissions[sNum];
+            else state.submissions[sNum] = status;
             saveData();
             renderPresentView(); 
           });
-
           seatDiv.appendChild(badge);
         }
         return seatDiv;
@@ -990,7 +936,6 @@
             const badge = document.createElement("div");
             badge.className = "student-badge";
             if (seatData.locked) badge.classList.add("locked");
-
             const sNum = seatData.student;
             badge.innerText = sNum;
 
@@ -999,17 +944,12 @@
             if (currentStatus === 2) badge.classList.add("status-incomplete");
 
             badge.addEventListener("click", () => {
-              let status = state.submissions[sNum] || 0;
-              status = (status + 1) % 3;
-              if (status === 0) {
-                delete state.submissions[sNum];
-              } else {
-                state.submissions[sNum] = status;
-              }
+              let status = (state.submissions[sNum] || 0) + 1;
+              if (status > 2) delete state.submissions[sNum];
+              else state.submissions[sNum] = status;
               saveData();
               renderPresentView();
             });
-
             seatDiv.appendChild(badge);
           }
           grid.appendChild(seatDiv);
@@ -1026,9 +966,7 @@
     }
 
     function toggleSeatLock(seatIndex) {
-      if (!state.seats[seatIndex]) {
-        state.seats[seatIndex] = { student: null, locked: false };
-      }
+      if (!state.seats[seatIndex]) state.seats[seatIndex] = { student: null, locked: false };
       state.seats[seatIndex].locked = !state.seats[seatIndex].locked;
       saveData();
       render();
@@ -1044,12 +982,8 @@
 
     function removeDropStyle(e) {
       const seat = e.currentTarget.closest(".seat") || e.currentTarget;
-      if (seat.classList && seat.classList.contains("seat")) {
-        seat.classList.remove("drag-over");
-      }
-      if (e.target.id === "pool") {
-        e.target.style.backgroundColor = "#fafafa";
-      }
+      if (seat.classList && seat.classList.contains("seat")) seat.classList.remove("drag-over");
+      if (e.target.id === "pool") e.target.style.backgroundColor = "#fafafa";
     }
 
     function dropToPool(e) {
@@ -1058,23 +992,17 @@
       try {
         const data = JSON.parse(e.dataTransfer.getData("text/plain"));
         if (data.sourceType === "seat") {
-          const seatData = state.seats[data.sourceIndex];
-          if (seatData && seatData.locked) return; 
-          
+          if (state.seats[data.sourceIndex]?.locked) return; 
           const num = data.num;
           state.seats[data.sourceIndex].student = null;
-
           if (!state.pool.includes(num)) {
             state.pool.push(num);
             state.pool.sort((a, b) => a - b);
           }
-
           saveData();
           render();
         }
-      } catch(err) {
-        console.error(err);
-      }
+      } catch(err) { console.error(err); }
     }
 
     function dropToSeat(e, targetSeatIndex) {
@@ -1083,16 +1011,11 @@
       if (seat) seat.classList.remove("drag-over");
 
       if (targetSeatIndex < gridSeats) {
-        const colIdx = Math.floor(targetSeatIndex / rows);
-        const rowIdx = targetSeatIndex % rows;
-        const coord = `${colIdx + 1}-${rowIdx + 1}`;
+        const coord = `${Math.floor(targetSeatIndex / rows) + 1}-${targetSeatIndex % rows + 1}`;
         if (disabledSeats.includes(coord)) return;
       }
 
-      if (!state.seats[targetSeatIndex]) {
-        state.seats[targetSeatIndex] = { student: null, locked: false };
-      }
-
+      if (!state.seats[targetSeatIndex]) state.seats[targetSeatIndex] = { student: null, locked: false };
       if (state.seats[targetSeatIndex].locked) {
         alert("此格子已被鎖定，無法放入學生！");
         return;
@@ -1119,25 +1042,18 @@
         }
 
         state.seats[targetSeatIndex].student = movingNum;
-
         saveData();
         render();
-      } catch(err) {
-        console.error(err);
-      }
+      } catch(err) { console.error(err); }
     }
 
     function randomAssign() {
       let freeStudents = [...state.pool];
-
       for (let i = 0; i < totalSeats; i++) {
         if (i < gridSeats) {
-          const colIdx = Math.floor(i / rows);
-          const rowIdx = i % rows;
-          const coord = `${colIdx + 1}-${rowIdx + 1}`;
+          const coord = `${Math.floor(i / rows) + 1}-${i % rows + 1}`;
           if (disabledSeats.includes(coord)) continue;
         }
-
         if (state.seats[i] && !state.seats[i].locked && state.seats[i].student !== null) {
           freeStudents.push(state.seats[i].student);
           state.seats[i].student = null;
@@ -1152,58 +1068,39 @@
       let studentIndex = 0;
       for (let i = 0; i < totalSeats; i++) {
         if (i < gridSeats) {
-          const colIdx = Math.floor(i / rows);
-          const rowIdx = i % rows;
-          const coord = `${colIdx + 1}-${rowIdx + 1}`;
+          const coord = `${Math.floor(i / rows) + 1}-${i % rows + 1}`;
           if (disabledSeats.includes(coord)) continue;
         }
-
-        if (!state.seats[i]) {
-          state.seats[i] = { student: null, locked: false };
-        }
-
-        if (!state.seats[i].locked) {
-          if (studentIndex < freeStudents.length) {
-            state.seats[i].student = freeStudents[studentIndex];
-            studentIndex++;
-          }
+        if (!state.seats[i]) state.seats[i] = { student: null, locked: false };
+        if (!state.seats[i].locked && studentIndex < freeStudents.length) {
+          state.seats[i].student = freeStudents[studentIndex];
+          studentIndex++;
         }
       }
-
       state.pool = freeStudents.slice(studentIndex);
-
       saveData();
       render();
     }
 
     function resetSeats() {
-      if (confirm("確定要清空所有未鎖定的座位與學生嗎？（鎖定的空格與學生會保留）")) {
+      if (confirm("確定要清空所有未鎖定的座位與學生嗎？")) {
         let newPool = Array.from({ length: totalStudents }, (_, i) => i + 1);
-        
         for (let i = 0; i < totalSeats; i++) {
           if (i < gridSeats) {
-            const colIdx = Math.floor(i / rows);
-            const rowIdx = i % rows;
-            const coord = `${colIdx + 1}-${rowIdx + 1}`;
+            const coord = `${Math.floor(i / rows) + 1}-${i % rows + 1}`;
             if (disabledSeats.includes(coord)) continue;
           }
-
-          if (state.seats[i] && state.seats[i].locked && state.seats[i].student !== null) {
-            const idx = newPool.indexOf(state.seats[i].student);
-            if (idx > -1) newPool.splice(idx, 1);
+          if (state.seats[i]?.locked && state.seats[i]?.student !== null) {
+            newPool = newPool.filter(n => n !== state.seats[i].student);
           } else {
             state.seats[i] = { student: null, locked: false };
           }
         }
-
         state.pool = newPool;
         saveData();
         render();
       }
     }
-
-    loadData();
-    render();
   </script>
 </body>
 </html>
