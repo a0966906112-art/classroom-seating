@@ -585,9 +585,15 @@
       }
     }
 
-    function toggleMemoLockWithPassword() {
-      if (!verifyPassword()) return;
-      state.memoLocked = !state.memoLocked;
+function toggleMemoLock() {
+      // 如果目前是未鎖定（準備要上鎖）：直接上鎖，不需要密碼
+      if (!state.memoLocked) {
+        state.memoLocked = true;
+      } else {
+        // 如果目前是已鎖定（準備要解鎖）：需要驗證密碼
+        if (!verifyPassword()) return;
+        state.memoLocked = false;
+      }
       updateMemoLockUI();
       saveData();
     }
