@@ -497,7 +497,7 @@
           <span>📝 今日聯絡簿</span>
           <div class="memo-header-right">
             <span id="memoDateBadge" class="memo-date-badge"></span>
-            <button id="memoLockBtn" class="memo-lock-btn" onclick="toggleMemoLockWithPassword()" title="點擊切換鎖定狀態需要密碼">🔓 解鎖中</button>
+            <button id="memoLockBtn" class="memo-lock-btn" onclick="toggleMemoLock()" title="點擊切換鎖定狀態">🔓 解鎖中</button>
           </div>
         </div>
         <div id="memoContent" class="memo-editor" contenteditable="true">一、</div>
@@ -540,7 +540,7 @@
     // ==========================================
     // 設定管理員密碼（可自行修改引號內的密碼）
     // ==========================================
-    const ADMIN_PASSWORD = "258852";
+    const ADMIN_PASSWORD = "1234";
 
     // ==========================================
     // 請將 Google Apps Script 網頁應用程式網址填入下方
@@ -564,8 +564,8 @@
     };
 
     function verifyPassword() {
-      const input = prompt("請輸入管理員密碼才能解鎖/上鎖：");
-      if (input === null) return false; // 使用者按取消
+      const input = prompt("請輸入管理員密碼：");
+      if (input === null) return false; 
       if (input !== ADMIN_PASSWORD) {
         alert("密碼錯誤！");
         return false;
@@ -585,12 +585,10 @@
       }
     }
 
-function toggleMemoLock() {
-      // 如果目前是未鎖定（準備要上鎖）：直接上鎖，不需要密碼
+    function toggleMemoLock() {
       if (!state.memoLocked) {
         state.memoLocked = true;
       } else {
-        // 如果目前是已鎖定（準備要解鎖）：需要驗證密碼
         if (!verifyPassword()) return;
         state.memoLocked = false;
       }
@@ -614,7 +612,6 @@ function toggleMemoLock() {
       }
     }
 
-    // 從 Google 試算表載入資料
     function loadData() {
       if (!WEB_APP_URL || WEB_APP_URL.includes("請貼上")) {
         console.log("尚未設定 Google Apps Script 網址");
@@ -658,7 +655,6 @@ function toggleMemoLock() {
         });
     }
 
-    // 儲存資料到 Google 試算表
     function saveData() {
       const now = new Date();
       const formatted = now.toLocaleString();
@@ -749,9 +745,8 @@ function toggleMemoLock() {
         initTodayDate();
         renderPresentView(); 
       } else if (tabName === 'edit') {
-        // 切換到調整座位頁面時，也加上密碼防護
         if (!verifyPassword()) {
-          switchTab('present'); // 如果密碼錯誤或取消，留在學生檢視頁
+          switchTab('present'); 
           return;
         }
         document.querySelector('.tab-bar button:nth-child(2)').classList.add('active');
