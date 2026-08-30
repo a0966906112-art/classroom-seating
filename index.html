@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>教室座位安排表（Google 試算表同步版）</title>
+  <title>教室座位安排表（雲端同步版）</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Baloo+2&display=swap');
     body {
@@ -473,7 +473,7 @@
   <div id="present-tab" class="tab-content active">
     <div class="present-toolbar">
       <div class="present-tip">💡 點擊座號切換：<span style="color:#28a745; font-weight:bold;">綠色(已完成 ✓)</span> ➔ <span style="color:#b58500; font-weight:bold;">淡黃色(加油中 ✏️)</span> ➔ 正常</div>
-      <button onclick="resetSubmissions()" style="background-color: #dc3545; font-size: 13px; padding: 4px 10px;">清除所有回報狀態</button>
+      <button onclick="resetSubmissionsWithPassword()" style="background-color: #dc3545; font-size: 13px; padding: 4px 10px;">清除所有回報狀態</button>
     </div>
 
     <div class="present-layout">
@@ -497,7 +497,7 @@
           <span>📝 今日聯絡簿</span>
           <div class="memo-header-right">
             <span id="memoDateBadge" class="memo-date-badge"></span>
-            <button id="memoLockBtn" class="memo-lock-btn" onclick="toggleMemoLock()" title="點擊鎖定聯絡簿防止誤刪">🔓 解鎖中</button>
+            <button id="memoLockBtn" class="memo-lock-btn" onclick="toggleMemoLockWithPassword()" title="點擊切換鎖定狀態需要密碼">🔓 解鎖中</button>
           </div>
         </div>
         <div id="memoContent" class="memo-editor" contenteditable="true">一、</div>
@@ -538,9 +538,14 @@
 
   <script>
     // ==========================================
+    // 設定管理員密碼（可自行修改引號內的密碼）
+    // ==========================================
+    const ADMIN_PASSWORD = "258852";
+
+    // ==========================================
     // 請將 Google Apps Script 網頁應用程式網址填入下方
     // ==========================================
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwvczuvfUuPMiq4pNDYbkO-3ezTRjF91qw9wromign0PD2g5E5OYfCKd24MMKLIJ12y/exec";
+    const WEB_APP_URL = "請貼上你的Google Apps Script網址";
 
     const totalStudents = 27; 
     const cols = 6; 
@@ -558,6 +563,16 @@
       memoLocked: false
     };
 
+    function verifyPassword() {
+      const input = prompt("請輸入管理員密碼才能解鎖/上鎖：");
+      if (input === null) return false; // 使用者按取消
+      if (input !== ADMIN_PASSWORD) {
+        alert("密碼錯誤！");
+        return false;
+      }
+      return true;
+    }
+
     function initTodayDate() {
       const dateBadge = document.getElementById("memoDateBadge");
       if (dateBadge) {
@@ -570,7 +585,8 @@
       }
     }
 
-    function toggleMemoLock() {
+    function toggleMemoLockWithPassword() {
+      if (!verifyPassword()) return;
       state.memoLocked = !state.memoLocked;
       updateMemoLockUI();
       saveData();
@@ -655,7 +671,7 @@
 
       fetch(WEB_APP_URL, {
         method: "POST",
-        mode: "no-cors", // 避免跨域阻擋
+        mode: "no-cors", 
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(payload)
       }).catch(err => {
@@ -714,7 +730,6 @@
       }
 
       loadData();
-      // 設定每隔 5 秒自動向 Google 試算表同步一次最新狀態，確保多裝置能互通
       setInterval(loadData, 5000);
     });
 
@@ -728,6 +743,11 @@
         initTodayDate();
         renderPresentView(); 
       } else if (tabName === 'edit') {
+        // 切換到調整座位頁面時，也加上密碼防護
+        if (!verifyPassword()) {
+          switchTab('present'); // 如果密碼錯誤或取消，留在學生檢視頁
+          return;
+        }
         document.querySelector('.tab-bar button:nth-child(2)').classList.add('active');
         document.getElementById('edit-tab').classList.add('active');
       }
@@ -957,7 +977,8 @@
       }
     }
 
-    function resetSubmissions() {
+    function resetSubmissionsWithPassword() {
+      if (!verifyPassword()) return;
       if (confirm("確定要清除所有學生的回報狀態嗎？")) {
         state.submissions = {};
         saveData();
