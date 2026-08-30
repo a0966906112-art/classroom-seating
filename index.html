@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>教室座位安排表（雲端同步版）</title>
+  <title>教室座位安排表（雲端同步防回溯版）</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Baloo+2&display=swap');
     body {
@@ -463,7 +463,7 @@
 </head>
 <body>
 
-  <h1>教室座位安排表（雲端同步版）</h1>
+  <h1>教室座位安排表（雲端同步防回溯版）</h1>
 
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('present')">📺 學生檢視頁面（作業回報）</button>
@@ -537,15 +537,12 @@
   <div class="timestamp-global" id="lastUpdate">最後更新時間：尚未更新</div>
 
   <script>
-    // ==========================================
-    // 設定管理員密碼（可自行修改引號內的密碼）
-    // ==========================================
     const ADMIN_PASSWORD = "258852";
-
+    
     // ==========================================
-    // 請將 Google Apps Script 網頁應用程式網址填入下方
+    // 請將您的 Google Apps Script 網址填入下方引號內
     // ==========================================
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwH4tjIHsrTsxdpt8ELViTwGifL-HCFqv0mJaSSFptfaXJHDUtSZ2BB-adEqu6VfwSo/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzmEtDDzHg9s8ippCkokKRlVrRZ1pNKWS2EdfgExMNmVtZQAPx9fcIB0YUZrP1PCzI-/exec";
 
     const totalStudents = 27; 
     const cols = 6; 
@@ -562,6 +559,9 @@
       memo: "一、",
       memoLocked: false
     };
+
+    let isSaving = false;
+    let pendingSave = false;
 
     function verifyPassword() {
       const input = prompt("請輸入管理員密碼：");
@@ -614,10 +614,11 @@
 
     function loadData() {
       if (!WEB_APP_URL || WEB_APP_URL.includes("請貼上")) {
-        console.log("尚未設定 Google Apps Script 網址");
         render();
         return;
       }
+
+      if (isSaving) return;
 
       fetch(WEB_APP_URL)
         .then(res => res.json())
@@ -651,7 +652,6 @@
         })
         .catch(err => {
           console.error("讀取雲端資料失敗", err);
-          render();
         });
     }
 
@@ -671,13 +671,27 @@
 
       if (!WEB_APP_URL || WEB_APP_URL.includes("請貼上")) return;
 
+      if (isSaving) {
+        pendingSave = true;
+        return;
+      }
+
+      isSaving = true;
+
       fetch(WEB_APP_URL, {
         method: "POST",
         mode: "no-cors", 
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(payload)
+      }).then(() => {
+        isSaving = false;
+        if (pendingSave) {
+          pendingSave = false;
+          saveData();
+        }
       }).catch(err => {
         console.error("寫入雲端失敗: ", err);
+        isSaving = false;
       });
     }
 
@@ -732,7 +746,7 @@
       }
 
       loadData();
-      setInterval(loadData, 5000);
+      setInterval(loadData, 4000);
     });
 
     function switchTab(tabName) {
@@ -922,8 +936,16 @@
             let status = (state.submissions[sNum] || 0) + 1;
             if (status > 2) delete state.submissions[sNum];
             else state.submissions[sNum] = status;
+            
+            if (status === 1) {
+              badge.className = "student-badge status-submitted";
+            } else if (status === 2) {
+              badge.className = "student-badge status-incomplete";
+            } else {
+              badge.className = "student-badge";
+            }
+
             saveData();
-            renderPresentView(); 
           });
           seatDiv.appendChild(badge);
         }
@@ -968,8 +990,16 @@
               let status = (state.submissions[sNum] || 0) + 1;
               if (status > 2) delete state.submissions[sNum];
               else state.submissions[sNum] = status;
+
+              if (status === 1) {
+                badge.className = "student-badge status-submitted";
+              } else if (status === 2) {
+                badge.className = "student-badge status-incomplete";
+              } else {
+                badge.className = "student-badge";
+              }
+
               saveData();
-              renderPresentView();
             });
             seatDiv.appendChild(badge);
           }
